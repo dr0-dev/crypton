@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:asn1lib/asn1lib.dart';
 import 'package:crypton/crypton.dart';
 import 'package:pointycastle/export.dart' as pointy;
+import 'package:pointycastle/src/impl/base_asymmetric_block_cipher.dart';
 
 /// [PrivateKey] using RSA Algorithm
 class RSAPrivateKey implements PrivateKey {
@@ -29,10 +30,7 @@ class RSAPrivateKey implements PrivateKey {
     final q = pkSeq.elements[5] as ASN1Integer;
 
     _privateKey = pointy.RSAPrivateKey(
-        modulus.valueAsBigInteger!,
-        privateExponent.valueAsBigInteger!,
-        p.valueAsBigInteger,
-        q.valueAsBigInteger);
+        modulus.valueAsBigInteger!, privateExponent.valueAsBigInteger!, p.valueAsBigInteger, q.valueAsBigInteger);
   }
 
   /// Create an [RSAPrivateKey] from the given PEM-String.
@@ -49,69 +47,61 @@ class RSAPrivateKey implements PrivateKey {
   /// Sign an message with SHA-256 which can be verified using the associated [RSAPublicKey]
   @override
   @Deprecated('Use createSHA256Signature for creating SHA-256 signatures')
-  String createSignature(String message) =>
-      base64.encode(createSHA256Signature(utf8.encode(message) as Uint8List));
+  String createSignature(String message) => base64.encode(createSHA256Signature(utf8.encode(message) as Uint8List));
 
   /// Sign an message with SHA-256 which can be verified using the associated [RSAPublicKey]
   @override
-  Uint8List createSHA256Signature(Uint8List message) =>
-      _createSignature(message, 'SHA-256/RSA');
+  Uint8List createSHA256Signature(Uint8List message) => _createSignature(message, 'SHA-256/RSA');
 
   /// Sign an message with SHA-512 which can be verified using the associated [RSAPublicKey]
   @override
-  Uint8List createSHA512Signature(Uint8List message) =>
-      _createSignature(message, 'SHA-512/RSA');
+  Uint8List createSHA512Signature(Uint8List message) => _createSignature(message, 'SHA-512/RSA');
 
   Uint8List _createSignature(Uint8List message, String algorithm) {
     final signer = pointy.Signer(algorithm);
-    pointy.AsymmetricKeyParameter<pointy.RSAPrivateKey> privateKeyParams =
-        pointy.PrivateKeyParameter(_privateKey);
+    pointy.AsymmetricKeyParameter<pointy.RSAPrivateKey> privateKeyParams = pointy.PrivateKeyParameter(_privateKey);
     signer.init(true, privateKeyParams);
     final sig = signer.generateSignature(message) as pointy.RSASignature;
     return sig.bytes;
   }
 
   /// Decrypt a message which was encrypted using the associated [RSAPublicKey]
-  String decrypt(String message) =>
-      utf8.decode(decryptData(base64.decode(message)));
+  String decrypt(String message, {bool oap = false}) => utf8.decode(decryptData(base64.decode(message), oap));
 
   /// Decrypt a message which was encrypted using the associated [RSAPublicKey]
-  Uint8List decryptData(Uint8List message) {
-    final cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
-    cipher.init(
-        false, pointy.PrivateKeyParameter<pointy.RSAPrivateKey>(_privateKey));
+  Uint8List decryptData(Uint8List message, bool oap) {
+    late BaseAsymmetricBlockCipher cipher;
+    if (oap) {
+      cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+    } else {
+      cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
+    }
+    cipher.init(false, pointy.PrivateKeyParameter<pointy.RSAPrivateKey>(_privateKey));
     return _processInBlocks(cipher, message);
   }
 
-  Uint8List _processInBlocks(
-      pointy.AsymmetricBlockCipher engine, Uint8List input) {
-    final numBlocks = input.length ~/ engine.inputBlockSize +
-        ((input.length % engine.inputBlockSize != 0) ? 1 : 0);
+  Uint8List _processInBlocks(pointy.AsymmetricBlockCipher engine, Uint8List input) {
+    final numBlocks = input.length ~/ engine.inputBlockSize + ((input.length % engine.inputBlockSize != 0) ? 1 : 0);
 
     final output = Uint8List(numBlocks * engine.outputBlockSize);
 
     var inputOffset = 0;
     var outputOffset = 0;
     while (inputOffset < input.length) {
-      final chunkSize = (inputOffset + engine.inputBlockSize <= input.length)
-          ? engine.inputBlockSize
-          : input.length - inputOffset;
+      final chunkSize =
+          (inputOffset + engine.inputBlockSize <= input.length) ? engine.inputBlockSize : input.length - inputOffset;
 
-      outputOffset += engine.processBlock(
-          input, inputOffset, chunkSize, output, outputOffset);
+      outputOffset += engine.processBlock(input, inputOffset, chunkSize, output, outputOffset);
 
       inputOffset += chunkSize;
     }
 
-    return (output.length == outputOffset)
-        ? output
-        : output.sublist(0, outputOffset);
+    return (output.length == outputOffset) ? output : output.sublist(0, outputOffset);
   }
 
   /// Get the [RSAPublicKey] of the [RSAPrivateKey]
   @override
-  RSAPublicKey get publicKey =>
-      RSAPublicKey(_privateKey.modulus!, BigInt.parse('65537'));
+  RSAPublicKey get publicKey => RSAPublicKey(_privateKey.modulus!, BigInt.parse('65537'));
 
   /// Export a [RSAPrivateKey] as Pointy Castle RSAPrivateKey
   @override
@@ -123,8 +113,8 @@ class RSAPrivateKey implements PrivateKey {
     final version = ASN1Integer(BigInt.from(0));
 
     final algorithmSeq = ASN1Sequence();
-    final algorithmAsn1Obj = ASN1Object.fromBytes(Uint8List.fromList(
-        [0x6, 0x9, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0xd, 0x1, 0x1, 0x1]));
+    final algorithmAsn1Obj =
+        ASN1Object.fromBytes(Uint8List.fromList([0x6, 0x9, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0xd, 0x1, 0x1, 0x1]));
     final paramsAsn1Obj = ASN1Object.fromBytes(Uint8List.fromList([0x5, 0x0]));
     algorithmSeq.add(algorithmAsn1Obj);
     algorithmSeq.add(paramsAsn1Obj);
@@ -151,8 +141,7 @@ class RSAPrivateKey implements PrivateKey {
     privateKeySeq.add(exp1);
     privateKeySeq.add(exp2);
     privateKeySeq.add(co);
-    final publicKeySeqOctetString =
-        ASN1OctetString(Uint8List.fromList(privateKeySeq.encodedBytes));
+    final publicKeySeqOctetString = ASN1OctetString(Uint8List.fromList(privateKeySeq.encodedBytes));
 
     final topLevelSeq = ASN1Sequence();
     topLevelSeq.add(version);

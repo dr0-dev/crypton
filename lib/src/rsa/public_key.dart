@@ -4,14 +4,14 @@ import 'dart:typed_data';
 import 'package:asn1lib/asn1lib.dart';
 import 'package:crypton/crypton.dart';
 import 'package:pointycastle/export.dart' as pointy;
+import 'package:pointycastle/src/impl/base_asymmetric_block_cipher.dart';
 
 /// [PublicKey] using RSA Algorithm
 class RSAPublicKey implements PublicKey {
   late pointy.RSAPublicKey _publicKey;
 
   /// Create an [RSAPublicKey] for the given parameters.
-  RSAPublicKey(BigInt modulus, BigInt exponent)
-      : _publicKey = pointy.RSAPublicKey(modulus, exponent);
+  RSAPublicKey(BigInt modulus, BigInt exponent) : _publicKey = pointy.RSAPublicKey(modulus, exponent);
 
   /// Create an [RSAPublicKey] from the given String.
   RSAPublicKey.fromString(String publicKeyString) {
@@ -25,8 +25,7 @@ class RSAPublicKey implements PublicKey {
     final modulus = publicKeySeq.elements[0] as ASN1Integer;
     final exponent = publicKeySeq.elements[1] as ASN1Integer;
 
-    _publicKey = pointy.RSAPublicKey(
-        modulus.valueAsBigInteger!, exponent.valueAsBigInteger!);
+    _publicKey = pointy.RSAPublicKey(modulus.valueAsBigInteger!, exponent.valueAsBigInteger!);
   }
 
   /// Create an [RSAPublicKey] from the given PEM-String.
@@ -44,8 +43,7 @@ class RSAPublicKey implements PublicKey {
   @Deprecated('For SHA256 signature verification use verifySHA256Signature')
   @override
   bool verifySignature(String message, String signature) =>
-      verifySHA256Signature(
-          utf8.encode(message) as Uint8List, base64.decode(signature));
+      verifySHA256Signature(utf8.encode(message) as Uint8List, base64.decode(signature));
 
   /// Verify the signature of a SHA256-hashed message signed with the associated [RSAPrivateKey]
   @override
@@ -57,25 +55,27 @@ class RSAPublicKey implements PublicKey {
   bool verifySHA512Signature(Uint8List message, Uint8List signature) =>
       _verifySignature(message, signature, 'SHA-512/RSA');
 
-  bool _verifySignature(
-      Uint8List message, Uint8List signature, String algorithm) {
+  bool _verifySignature(Uint8List message, Uint8List signature, String algorithm) {
     final signer = pointy.Signer(algorithm);
-    pointy.AsymmetricKeyParameter<pointy.RSAPublicKey> publicKeyParams =
-        pointy.PublicKeyParameter(_publicKey);
+    pointy.AsymmetricKeyParameter<pointy.RSAPublicKey> publicKeyParams = pointy.PublicKeyParameter(_publicKey);
     final sig = pointy.RSASignature(signature);
     signer.init(false, publicKeyParams);
     return signer.verifySignature(message, sig);
   }
 
   /// Encrypt a message which can only be decrypted using the associated [RSAPrivateKey]
-  String encrypt(String message) =>
-      base64.encode(encryptData(utf8.encode(message) as Uint8List));
+  String encrypt(String message, {bool oap = false}) =>
+      base64.encode(encryptData(utf8.encode(message) as Uint8List, oap));
 
   /// Encrypt a message which can only be decrypted using the associated [RSAPrivateKey]
-  Uint8List encryptData(Uint8List message) {
-    final cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
-    cipher.init(
-        true, pointy.PublicKeyParameter<pointy.RSAPublicKey>(_publicKey));
+  Uint8List encryptData(Uint8List message, bool oap) {
+    BaseAsymmetricBlockCipher cipher;
+    if (oap) {
+      cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+    } else {
+      cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
+    }
+    cipher.init(true, pointy.PublicKeyParameter<pointy.RSAPublicKey>(_publicKey));
     return cipher.process(message);
   }
 
@@ -87,8 +87,8 @@ class RSAPublicKey implements PublicKey {
   @override
   String toString() {
     final algorithmSeq = ASN1Sequence();
-    final algorithmAsn1Obj = ASN1Object.fromBytes(Uint8List.fromList(
-        [0x6, 0x9, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0xd, 0x1, 0x1, 0x1]));
+    final algorithmAsn1Obj =
+    ASN1Object.fromBytes(Uint8List.fromList([0x6, 0x9, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0xd, 0x1, 0x1, 0x1]));
     final paramsAsn1Obj = ASN1Object.fromBytes(Uint8List.fromList([0x5, 0x0]));
     algorithmSeq.add(algorithmAsn1Obj);
     algorithmSeq.add(paramsAsn1Obj);
@@ -96,8 +96,7 @@ class RSAPublicKey implements PublicKey {
     final publicKeySeq = ASN1Sequence();
     publicKeySeq.add(ASN1Integer(_publicKey.modulus!));
     publicKeySeq.add(ASN1Integer(_publicKey.exponent!));
-    final publicKeySeqBitString =
-        ASN1BitString(Uint8List.fromList(publicKeySeq.encodedBytes));
+    final publicKeySeqBitString = ASN1BitString(Uint8List.fromList(publicKeySeq.encodedBytes));
 
     final topLevelSeq = ASN1Sequence();
     topLevelSeq.add(algorithmSeq);

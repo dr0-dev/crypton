@@ -4,12 +4,20 @@ version: 2.1.0
 homepage: https://github.com/konstantinullrich
 repository: https://github.com/konstantinullrich/crypton
 issue_tracker: https://github.com/konstantinullrich/crypton/issues
+publish_to: none
 
 environment:
   sdk: '>=2.14.0 <3.0.0'
 
 dependencies:
-  pointycastle: ^3.6.2
+#  pointycastle: ^3.6.2
+  pointycastle:
+    git:
+      url: https://github.com/dr0-dev/pc-dart.git
+      ref: "d082549"
+
+#    git: https://github.com/braverhealth/pc-dart
+
   asn1lib: ^1.2.2
 
 dev_dependencies:
