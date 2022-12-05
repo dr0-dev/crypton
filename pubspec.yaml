@@ -10,11 +10,11 @@ environment:
   sdk: '>=2.14.0 <3.0.0'
 
 dependencies:
-#  pointycastle: ^3.6.2
-  pointycastle:
-    git:
-      url: https://github.com/dr0-dev/pc-dart.git
-      ref: "d082549"
+  pointycastle: ^3.6.2
+#  pointycastle:
+#    git:
+#      url: https://github.com/dr0-dev/pc-dart.git
+#      ref: "d082549"
 
 #    git: https://github.com/braverhealth/pc-dart
 

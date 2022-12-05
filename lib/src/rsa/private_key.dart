@@ -72,7 +72,8 @@ class RSAPrivateKey implements PrivateKey {
   Uint8List decryptData(Uint8List message, bool oap) {
     late BaseAsymmetricBlockCipher cipher;
     if (oap) {
-      cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+      // cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+      cipher = pointy.OAEPEncoding.withSHA1(pointy.RSAEngine());
     } else {
       cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
     }

@@ -71,7 +71,8 @@ class RSAPublicKey implements PublicKey {
   Uint8List encryptData(Uint8List message, bool oap) {
     BaseAsymmetricBlockCipher cipher;
     if (oap) {
-      cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+      // cipher = pointy.OAEPSha256Encoding(pointy.RSAEngine());
+      cipher = pointy.OAEPEncoding.withSHA1(pointy.RSAEngine());
     } else {
       cipher = pointy.PKCS1Encoding(pointy.RSAEngine());
     }
